@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model Project {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(120)
+  description String    @default("") @db.VarChar(600)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  subjects    Subject[]
+
+  @@map("projects")
+}
+
+model Subject {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(120)
+  projectId String   @map("project_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  topics    Topic[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("subjects")
+}
+
+model Topic {
+  id        Int            @id @default(autoincrement())
+  name      String         @db.VarChar(180)
+  completed Boolean        @default(false)
+  subjectId String         @map("subject_id") @db.Uuid
+  subject   Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  sessions  StudySession[]
+
+  @@unique([subjectId, name])
+  @@index([subjectId])
+  @@map("topics")
+}
+
+model StudySession {
+  id              Int           @id @default(autoincrement())
+  topicId         Int           @map("topic_id")
+  startedAt       DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
+  lastResumedAt   DateTime?     @map("last_resumed_at") @db.Timestamptz(3)
+  endedAt         DateTime?     @map("ended_at") @db.Timestamptz(3)
+  durationSeconds Int           @default(0) @map("duration_seconds")
+  status          SessionStatus @default(ACTIVE)
+  topic           Topic         @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("study_sessions")
+}
+
+model UserSettings {
+  id                   String   @id @default("local") @db.VarChar(40)
+  name                 String   @default("Pedro Santos") @db.VarChar(120)
+  email                String   @default("pedro@email.com") @db.VarChar(255)
+  dailyGoalMinutes     Int      @default(120) @map("daily_goal_minutes")
+  timezone             String   @default("America/Sao_Paulo") @db.VarChar(80)
+  timerSounds          Boolean  @default(false) @map("timer_sounds")
+  dailyReminder        Boolean  @default(true) @map("daily_reminder")
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("user_settings")
+}

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
   ChevronRight,
   Flame,
+  LogOut,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -16,6 +17,10 @@ import { TimerWidget } from "@/components/timer-widget";
 import { Toaster } from "@/components/ui/sonner";
 import { dashboardApi } from "@/services/dashboard-service";
 import { settingsApi } from "@/services/settings-service";
+import { authApi } from "@/services/auth-service";
+import { ApiClientError } from "@/services/api-client";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const navigation = [
   { href: "/", label: "Visão geral", icon: BarChart3 },
@@ -25,10 +30,38 @@ const navigation = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
   const [streak, setStreak] = useState(0);
   const [profile, setProfile] = useState({ name: "Usuário", email: "" });
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await authApi.logout();
+      router.replace("/login");
+      router.refresh();
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Não foi possível sair.");
+      setIsLoggingOut(false);
+    }
+  }
   useEffect(() => {
+    if (isAuthRoute) {
+      return;
+    }
+
     const load = () => {
+      void authApi
+        .me()
+        .then(({ user }) => setProfile({ name: user.name, email: user.email }))
+        .catch((reason: unknown) => {
+          if (reason instanceof ApiClientError && reason.status === 401) {
+            router.replace("/login");
+          }
+        });
       void dashboardApi
         .get()
         .then((data) => setStreak(data.currentStreak))
@@ -45,13 +78,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.removeEventListener("study-data-updated", load);
       window.removeEventListener("settings-updated", load);
     };
-  }, [pathname]);
+  }, [isAuthRoute, pathname, router]);
   const initials = profile.name
     .split(" ")
     .map((part) => part[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  if (isAuthRoute) {
+    return (
+      <>
+        {children}
+        <Toaster />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <div className="aurora-canvas" aria-hidden="true">
@@ -139,6 +182,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {profile.email}
             </p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="ml-auto size-9 shrink-0"
+            disabled={isLoggingOut}
+            aria-label={isLoggingOut ? "Saindo…" : "Sair"}
+            onClick={handleLogout}
+          >
+            <LogOut className="size-4" />
+          </Button>
         </div>
       </aside>
       <main className="relative z-10 min-h-screen pb-28 md:ml-64 md:pb-12">
@@ -155,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-w-20 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition",
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] transition",
                 active
                   ? "text-[var(--foreground)]"
                   : "text-[var(--muted-foreground)]",
@@ -171,6 +225,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+          disabled={isLoggingOut}
+          aria-label={isLoggingOut ? "Saindo…" : "Sair"}
+          onClick={handleLogout}
+        >
+          <LogOut className="size-4" />
+          Sair
+        </button>
       </nav>
       <TimerWidget />
       <Toaster />

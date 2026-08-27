@@ -49,12 +49,12 @@ export default function Home() {
   if (loading)
     return (
       <div className="page-shell">
-        <div className="h-20 w-80 animate-pulse rounded-xl bg-[var(--surface)]" />
+        <div className="h-20 w-80 animate-pulse rounded-xl bg-(--surface)" />
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {[1, 2, 3].map((item) => (
             <div
               key={item}
-              className="h-44 animate-pulse rounded-xl bg-[var(--surface)]"
+              className="h-44 animate-pulse rounded-xl bg-(--surface)"
             />
           ))}
         </div>
@@ -65,7 +65,7 @@ export default function Home() {
       <div className="page-shell">
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-16">
-            <AlertCircle className="size-6 text-[var(--danger)]" />
+            <AlertCircle className="size-6 text-(--danger)" />
             <p className="text-sm">
               {error ?? "Não foi possível carregar o dashboard."}
             </p>
@@ -125,9 +125,9 @@ export default function Home() {
             key={metric.label}
             className="metric-card group relative overflow-hidden"
           >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--metric-line)] to-transparent opacity-0 transition group-hover:opacity-100" />
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-(--metric-line) to-transparent opacity-0 transition group-hover:opacity-100" />
             <CardContent className="p-5 sm:p-6">
-              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <div className="flex items-center justify-between text-xs text-(--muted-foreground)">
                 <span>{metric.label}</span>
                 <metric.icon className={`size-4 metric-icon-${index + 1}`} />
               </div>
@@ -135,12 +135,12 @@ export default function Home() {
                 <strong className="font-display text-5xl font-semibold leading-none tracking-[-.06em] sm:text-[3.35rem]">
                   {metric.value}
                 </strong>
-                <span className="mb-1 text-xs text-[var(--muted-foreground)]">
+                <span className="mb-1 text-xs text-(--muted-foreground)">
                   {metric.suffix}
                 </span>
               </div>
-              <p className="mt-4 flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
-                <ArrowUpRight className="size-3 text-[var(--positive)]" />
+              <p className="mt-4 flex items-center gap-1 text-[11px] text-(--muted-foreground)">
+                <ArrowUpRight className="size-3 text-(--positive)" />
                 {metric.detail}
               </p>
             </CardContent>
@@ -148,11 +148,11 @@ export default function Home() {
         ))}
       </section>
       <section className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_.8fr]">
-        <Card className="min-h-[390px]">
+        <Card className="min-h-97.5">
           <CardHeader>
             <div>
               <CardTitle>Horas por matéria</CardTitle>
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+              <p className="mt-1 text-xs text-(--muted-foreground)">
                 Distribuição nos últimos 7 dias
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             {data.subjects.length === 0 ? (
-              <div className="grid h-64 place-items-center text-sm text-[var(--muted-foreground)]">
+              <div className="grid h-64 place-items-center text-sm text-(--muted-foreground)">
                 Conclua uma sessão para ver o gráfico.
               </div>
             ) : (
@@ -175,7 +175,7 @@ export default function Home() {
                         {hours(subject.durationSeconds)}h
                       </span>
                       <div
-                        className="relative w-full max-w-16 overflow-hidden rounded-t-md bg-[var(--surface-3)]"
+                        className="relative w-full max-w-16 overflow-hidden rounded-t-md bg-(--surface-3)"
                         style={{
                           height: `${(subject.durationSeconds / maxSubject) * 82}%`,
                         }}
@@ -185,7 +185,7 @@ export default function Home() {
                           style={{ background: colors[index % colors.length] }}
                         />
                       </div>
-                      <span className="max-w-full truncate text-[10px] text-[var(--muted-foreground)] sm:text-xs">
+                      <span className="max-w-full truncate text-[10px] text-(--muted-foreground) sm:text-xs">
                         {subject.name}
                       </span>
                     </div>
@@ -199,11 +199,11 @@ export default function Home() {
           <CardHeader>
             <div>
               <CardTitle>Ritmo semanal</CardTitle>
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+              <p className="mt-1 text-xs text-(--muted-foreground)">
                 Consistência de estudo
               </p>
             </div>
-            <BookMarked className="size-4 text-[var(--accent-secondary)]" />
+            <BookMarked className="size-4 text-(--accent-secondary)" />
           </CardHeader>
           <CardContent>
             <div className="flex h-44 items-end justify-between gap-2">
@@ -213,14 +213,14 @@ export default function Home() {
                   className="flex h-full flex-1 flex-col items-center justify-end gap-2"
                 >
                   <div
-                    className="w-full rounded-sm bg-[var(--accent-secondary-muted)] p-0.5"
+                    className="w-full rounded-sm bg-(--accent-secondary-muted) p-0.5"
                     style={{
                       height: `${Math.max((day.durationSeconds / maxDay) * 100, 3)}%`,
                     }}
                   >
-                    <div className="h-full w-full rounded-[2px] bg-[var(--accent-secondary)] opacity-60" />
+                    <div className="h-full w-full rounded-xs bg-(--accent-secondary) opacity-60" />
                   </div>
-                  <span className="text-[10px] text-[var(--muted-foreground)]">
+                  <span className="text-[10px] text-(--muted-foreground)">
                     {new Intl.DateTimeFormat("pt-BR", {
                       weekday: "narrow",
                       timeZone: "UTC",
@@ -229,8 +229,8 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-              <p className="text-xs text-[var(--muted-foreground)]">
+            <div className="mt-6 rounded-lg border border-(--border) bg-(--surface-2) p-3">
+              <p className="text-xs text-(--muted-foreground)">
                 Melhor dia da semana
               </p>
               <div className="mt-1 flex items-baseline justify-between">
@@ -244,7 +244,7 @@ export default function Home() {
                     ),
                   )}
                 </strong>
-                <span className="text-xs text-[var(--accent-secondary)]">
+                <span className="text-xs text-(--accent-secondary)">
                   {duration(
                     Math.max(...data.daily.map((item) => item.durationSeconds)),
                   )}
@@ -259,18 +259,18 @@ export default function Home() {
           <CardHeader>
             <div>
               <CardTitle>Sessões recentes</CardTitle>
-              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+              <p className="mt-1 text-xs text-(--muted-foreground)">
                 Seu histórico mais recente
               </p>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             {data.recentSessions.length === 0 ? (
-              <p className="py-10 text-center text-sm text-[var(--muted-foreground)]">
+              <p className="py-10 text-center text-sm text-(--muted-foreground)">
                 Nenhuma sessão concluída ainda.
               </p>
             ) : (
-              <div className="divide-y divide-[var(--border)]">
+              <div className="divide-y divide-(--border)">
                 {data.recentSessions.map((session, index) => (
                   <div
                     key={session.id}
@@ -287,11 +287,11 @@ export default function Home() {
                       <p className="truncate text-sm font-medium">
                         {session.topic.name}
                       </p>
-                      <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                      <p className="mt-0.5 text-xs text-(--muted-foreground)">
                         {session.subject.name}
                       </p>
                     </div>
-                    <span className="hidden text-xs text-[var(--muted-foreground)] sm:block">
+                    <span className="hidden text-xs text-(--muted-foreground) sm:block">
                       {when(session.startedAt)}
                     </span>
                     <span className="font-display text-sm font-semibold tabular-nums">

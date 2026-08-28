@@ -14,9 +14,27 @@ const projectInclude = {
 };
 
 export const projectRepository = {
-  list: () => getPrisma().project.findMany({ orderBy: { updatedAt: "desc" }, include: projectInclude }),
-  findById: (id: string) => getPrisma().project.findUnique({ where: { id }, include: projectInclude }),
-  create: (data: CreateProjectInput) => getPrisma().project.create({ data, include: projectInclude }),
-  update: (id: string, data: UpdateProjectInput) => getPrisma().project.update({ where: { id }, data, include: projectInclude }),
+  list: (userId: string) =>
+    getPrisma().project.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      include: projectInclude,
+    }),
+  findById: (userId: string, id: string) =>
+    getPrisma().project.findFirst({
+      where: { id, userId },
+      include: projectInclude,
+    }),
+  create: (userId: string, data: CreateProjectInput) =>
+    getPrisma().project.create({
+      data: { ...data, userId },
+      include: projectInclude,
+    }),
+  update: (id: string, data: UpdateProjectInput) =>
+    getPrisma().project.update({
+      where: { id },
+      data,
+      include: projectInclude,
+    }),
   delete: (id: string) => getPrisma().project.delete({ where: { id } }),
 };

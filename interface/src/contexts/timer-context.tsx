@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { studySessionApi } from "@/services/study-session-service";
 import type { StudySessionDto } from "@/types/domain";
 import { toast } from "sonner";
+import { usePathname } from "next/navigation";
 
 type TimerContextValue = {
   session: StudySessionDto | null;
@@ -20,13 +21,18 @@ type TimerContextValue = {
 const TimerContext = createContext<TimerContextValue | null>(null);
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
   const [session, setSession] = useState<StudySessionDto | null>(null);
   const [elapsed, setElapsed] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isAuthRoute);
   const [error, setError] = useState<string | null>(null);
   const running = session?.status === "ACTIVE";
 
   useEffect(() => {
+    if (isAuthRoute) {
+      return;
+    }
     studySessionApi
       .active()
       .then((active) => {
@@ -41,7 +47,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         ),
       )
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAuthRoute]);
   useEffect(() => {
     if (!running) return;
     const interval = window.setInterval(

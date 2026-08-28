@@ -4,7 +4,12 @@ export function runningDuration(durationSeconds: number, lastResumedAt: Date | n
 }
 
 export function startOfLocalDay(date: Date, timezone: string) {
-  const local = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const local = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
   return local;
 }
 

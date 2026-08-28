@@ -1,5 +1,11 @@
 import { apiRequest } from "./api-client";
-import type { ProjectDetailDto, ProjectSummaryDto, SubjectDto, TopicDto } from "@/types/domain";
+import type {
+  BulkTopicResultDto,
+  ProjectDetailDto,
+  ProjectSummaryDto,
+  SubjectDto,
+  TopicDto,
+} from "@/types/domain";
 
 export const projectApi = {
   list: () => apiRequest<ProjectSummaryDto[]>("/api/projects"),
@@ -31,6 +37,14 @@ export const projectApi = {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
+  createTopicsBulk: (subjectId: string, topics: string[]) =>
+    apiRequest<BulkTopicResultDto>(
+      `/api/subjects/${subjectId}/topics/bulk`,
+      {
+        method: "POST",
+        body: JSON.stringify({ topics }),
+      },
+    ),
   updateTopic: (
     topicId: number,
     input: { name?: string; completed?: boolean },

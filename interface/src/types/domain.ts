@@ -5,6 +5,14 @@ export type TopicDto = {
   subjectId: string;
 };
 
+export type BulkTopicResultDto = {
+  created: TopicDto[];
+  skipped: Array<{
+    name: string;
+    reason: "already_exists";
+  }>;
+};
+
 export type SubjectDto = {
   id: string;
   name: string;

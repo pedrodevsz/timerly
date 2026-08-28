@@ -2,8 +2,8 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, SessionStatus } from "../src/generated/prisma/client";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL não está configurada.");
+const connectionString = process.env.DIRECT_URL;
+if (!connectionString) throw new Error("DIRECT_URL não está configurada.");
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(connectionString) });
 const seedUserId = "00000000-0000-4000-8000-000000000001";

@@ -36,6 +36,11 @@ pnpm dev
 
 No PowerShell, substitua `cp` por `Copy-Item .env.example .env`.
 
+Configure as duas conexões no `.env`: `DATABASE_URL` deve apontar para o
+endpoint pooled do Neon e é usada somente pelo runtime Next.js. `DIRECT_URL`
+deve apontar para o endpoint direto e é usada pelo Prisma CLI, migrations e
+seed. As URLs são fornecidas pelo Neon e não são transformadas pela aplicação.
+
 Para criar uma nova migration durante o desenvolvimento:
 
 ```bash

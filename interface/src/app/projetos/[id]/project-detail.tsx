@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   Circle,
+  ListPlus,
   MoreHorizontal,
   Pencil,
   Play,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
+import { CreateBulkTopicsDialog } from "@/components/subjects/create-bulk-topics-dialog";
 import { CreateTopicDialog } from "@/components/subjects/create-topic-dialog";
 import { SubjectDialog } from "@/components/subjects/subject-dialog";
 import { useTimer } from "@/contexts/timer-context";
@@ -46,6 +48,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     { mode: "create" } | { mode: "edit"; subject: SubjectDto } | null
   >(null);
   const [topicSubject, setTopicSubject] = useState<SubjectDto | null>(null);
+  const [bulkTopicSubject, setBulkTopicSubject] =
+    useState<SubjectDto | null>(null);
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<
     | { type: "subject"; id: string; name: string }
@@ -154,11 +158,17 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   function topicCreated(topic: TopicDto) {
+    topicsCreated([topic]);
+  }
+
+  function topicsCreated(createdTopics: TopicDto[]) {
+    if (createdTopics.length === 0) return;
+
     setProject((current) => {
       if (!current) return current;
       const subjects = current.subjects.map((subject) => {
-        if (subject.id !== topic.subjectId) return subject;
-        const topics = [...subject.topics, topic];
+        if (subject.id !== createdTopics[0].subjectId) return subject;
+        const topics = [...subject.topics, ...createdTopics];
         return {
           ...subject,
           topics,
@@ -412,12 +422,20 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={() => setTopicSubject(subject)}
-                    className="my-2 flex items-center gap-2 py-2 text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
-                  >
-                    <Plus className="size-3.5" /> Adicionar tópico
-                  </button>
+                  <div className="my-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <button
+                      onClick={() => setTopicSubject(subject)}
+                      className="flex items-center gap-2 py-2 text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+                    >
+                      <Plus className="size-3.5" /> Adicionar tópico
+                    </button>
+                    <button
+                      onClick={() => setBulkTopicSubject(subject)}
+                      className="flex items-center gap-2 py-2 text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+                    >
+                      <ListPlus className="size-3.5" /> Adicionar vários tópicos
+                    </button>
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -460,6 +478,17 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             if (!open) setTopicSubject(null);
           }}
           onCreated={topicCreated}
+        />
+      )}
+      {bulkTopicSubject && (
+        <CreateBulkTopicsDialog
+          key={bulkTopicSubject.id}
+          open
+          subject={bulkTopicSubject}
+          onOpenChange={(open) => {
+            if (!open) setBulkTopicSubject(null);
+          }}
+          onCreated={topicsCreated}
         />
       )}
       {deleteTarget && (

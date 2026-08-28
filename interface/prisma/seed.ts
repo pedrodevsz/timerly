@@ -1,6 +1,9 @@
-import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { config } from "dotenv";
 import { PrismaClient, SessionStatus } from "../src/generated/prisma/client";
+
+config({ path: ".env.local", quiet: true });
+config({ quiet: true });
 
 const connectionString = process.env.DIRECT_URL;
 if (!connectionString) throw new Error("DIRECT_URL não está configurada.");

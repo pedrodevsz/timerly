@@ -11,7 +11,7 @@ export const topicRepository = {
     getPrisma().topic.create({ data: { ...data, subjectId } }),
   createMany: (subjectId: string, names: string[]) =>
     getPrisma().$transaction(async (transaction) => {
-      await transaction.$queryRaw`
+      await transaction.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtext(${subjectId}))
       `;
 

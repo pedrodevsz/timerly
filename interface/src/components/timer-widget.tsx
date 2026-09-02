@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronUp, Pause, Play, Square } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronUp,
+  LoaderCircle,
+  Pause,
+  Play,
+  RefreshCw,
+  Square,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,34 +17,46 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatTime, useTimer } from "@/contexts/timer-context";
-import { projectApi } from "@/services/project-service";
-import type { ProjectDetailDto, StudySessionDto } from "@/types/domain";
+import { formatTime } from "@/contexts/timer-context";
+import {
+  selectElapsedSeconds,
+  selectRunningIntent,
+  selectTimerContext,
+  type TimerStartContext,
+  useTimerStore,
+} from "@/stores/timer-store";
 
 export function TimerWidget() {
-  const { session } = useTimer();
-  return session ? <ActiveTimerWidget session={session} /> : null;
+  const context = useTimerStore(selectTimerContext);
+  return context ? <ActiveTimerWidget context={context} /> : null;
 }
 
-function ActiveTimerWidget({ session }: { session: StudySessionDto }) {
-  const { elapsed, running, updateSession, toggleRunning, stopSession } =
-    useTimer();
-  const [open, setOpen] = useState(false);
-  const [project, setProject] = useState<ProjectDetailDto | null>(null);
-  useEffect(() => {
-    projectApi
-      .get(session.project.id)
-      .then(setProject)
-      .catch(() => setProject(null));
-  }, [session.project.id]);
-  const selectedSubject = project?.subjects.find(
-    (subject) => subject.id === session.subject.id,
+function ActiveTimerWidget({ context }: { context: TimerStartContext }) {
+  const elapsed = useTimerStore(selectElapsedSeconds);
+  const running = useTimerStore(selectRunningIntent);
+  const phase = useTimerStore((state) => state.phase);
+  const timerOpen = useTimerStore((state) => state.timerOpen);
+  const syncError = useTimerStore((state) => state.syncError);
+  const setTimerOpen = useTimerStore((state) => state.setTimerOpen);
+  const toggleRunning = useTimerStore((state) => state.toggleRunning);
+  const stopSession = useTimerStore((state) => state.stopSession);
+  const retryPending = useTimerStore((state) => state.retryPending);
+  const transitioning = ["starting", "pausing", "resuming", "finishing"].includes(
+    phase,
   );
+  const primaryLabel =
+    phase === "starting" || phase === "resuming"
+      ? "Iniciando…"
+      : phase === "pausing"
+        ? "Pausando…"
+        : running
+          ? "Pausar"
+          : "Continuar";
 
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => setTimerOpen(true)}
         className="timer-pill group fixed bottom-20 right-4 z-40 flex items-center gap-3 rounded-full border border-[var(--border-strong)] bg-[var(--surface-elevated)] py-2 pl-2 pr-3 shadow-2xl backdrop-blur-xl transition hover:-translate-y-0.5 sm:bottom-6 sm:right-6"
         aria-label="Abrir cronômetro"
       >
@@ -52,88 +71,111 @@ function ActiveTimerWidget({ session }: { session: StudySessionDto }) {
           )}
         </span>
         <span className="max-w-28 truncate text-left text-xs font-medium text-[var(--muted-foreground)] sm:max-w-40">
-          {session.subject.name}
+          {context.subject.name}
         </span>
-        <span className="font-display text-sm font-semibold tabular-nums tracking-wide">
+        <span className="font-display text-base font-semibold tabular-nums tracking-wide sm:text-lg">
           {formatTime(elapsed)}
         </span>
         <ChevronUp className="size-3.5 text-[var(--muted-foreground)] transition group-hover:-translate-y-0.5" />
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md overflow-hidden p-0">
-          <div className="relative px-6 pb-8 pt-6">
-            <div className="timer-glow pointer-events-none absolute left-1/2 top-1/3 size-60 -translate-x-1/2 rounded-full" />
+
+      <Dialog open={timerOpen} onOpenChange={setTimerOpen}>
+        <DialogContent className="max-w-xl overflow-hidden p-0">
+          <div className="relative px-5 pb-8 pt-6 sm:px-8 sm:pb-10 sm:pt-8">
+            <div className="timer-glow pointer-events-none absolute left-1/2 top-1/3 size-72 -translate-x-1/2 rounded-full" />
             <DialogHeader className="relative">
               <DialogTitle>Sessão em andamento</DialogTitle>
-              <DialogDescription>{session.project.name}</DialogDescription>
+              <DialogDescription>{context.project.name}</DialogDescription>
             </DialogHeader>
-            <div className="relative mt-10 text-center">
-              <div className="mb-3 flex items-center justify-center gap-2 text-sm text-[var(--muted-foreground)]">
-                <span className="size-1.5 rounded-full bg-[var(--accent-primary)]" />
-                {session.subject.name} · {session.topic.name}
-              </div>
-              <div className="font-display text-[clamp(3.1rem,16vw,4.8rem)] font-semibold leading-none tracking-[-.06em] tabular-nums">
+
+            <div className="relative mt-10 text-center sm:mt-12">
+              <div
+                data-testid="timer-display"
+                className="font-display text-[clamp(4rem,20vw,7rem)] font-semibold leading-none tracking-[-.07em] tabular-nums"
+              >
                 {formatTime(elapsed)}
               </div>
-              <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--muted-foreground)]">
-                {running ? "foco ativo" : "sessão pausada"}
+              <p className="mt-4 text-xs uppercase tracking-[.2em] text-[var(--muted-foreground)] sm:mt-5">
+                {phase === "starting"
+                  ? "iniciando sessão"
+                  : phase === "pausing"
+                    ? "sincronizando pausa"
+                    : phase === "resuming"
+                      ? "sincronizando retomada"
+                      : phase === "finishing"
+                        ? "finalizando sessão"
+                        : running
+                          ? "foco ativo"
+                          : "sessão pausada"}
               </p>
             </div>
-            <div className="relative mt-8 grid grid-cols-2 gap-3">
-              <label className="space-y-1.5 text-left text-[10px] font-medium uppercase tracking-[.12em] text-[var(--muted-foreground)]">
-                <span>Matéria</span>
-                <select
-                  value={session.subject.id}
-                  onChange={(event) => {
-                    const subject = project?.subjects.find(
-                      (item) => item.id === event.target.value,
-                    );
-                    const topic = subject?.topics[0];
-                    if (topic) void updateSession(topic.id);
-                  }}
-                  className="select-field w-full max-w-none normal-case tracking-normal"
-                >
-                  {project?.subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1.5 text-left text-[10px] font-medium uppercase tracking-[.12em] text-[var(--muted-foreground)]">
-                <span>Tópico</span>
-                <select
-                  value={session.topic.id}
-                  onChange={(event) =>
-                    void updateSession(Number(event.target.value))
-                  }
-                  className="select-field w-full max-w-none normal-case tracking-normal"
-                >
-                  {selectedSubject?.topics.map((topic) => (
-                    <option key={topic.id} value={topic.id}>
-                      {topic.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+
+            <div className="relative mt-9 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-left">
+                <span className="block text-[10px] font-medium uppercase tracking-[.14em] text-[var(--muted-foreground)]">
+                  Matéria
+                </span>
+                <span className="mt-1.5 block truncate text-sm font-medium">
+                  {context.subject.name}
+                </span>
+              </div>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-left">
+                <span className="block text-[10px] font-medium uppercase tracking-[.14em] text-[var(--muted-foreground)]">
+                  Tópico
+                </span>
+                <span className="mt-1.5 block truncate text-sm font-medium">
+                  {context.topic.name}
+                </span>
+              </div>
             </div>
-            <div className="relative mt-10 flex justify-center gap-3">
+
+            {phase === "error" && syncError ? (
+              <div className="relative mt-5 flex flex-col gap-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-4 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-start gap-2.5 text-sm">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-[var(--danger)]" />
+                  <span>{syncError}</span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void retryPending()}
+                >
+                  <RefreshCw className="size-3.5" />
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="relative mt-10 flex justify-center gap-4 sm:mt-12">
               <Button
                 size="icon"
                 variant="secondary"
-                className="size-12 rounded-full"
+                className="size-14 rounded-full"
                 onClick={() => void stopSession()}
-                aria-label="Encerrar sessão"
+                disabled={transitioning || phase === "error"}
+                aria-label={
+                  phase === "finishing" ? "Finalizando sessão…" : "Encerrar sessão"
+                }
               >
-                <Square className="size-4 fill-current" />
+                {phase === "finishing" ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Square className="size-4 fill-current" />
+                )}
               </Button>
               <Button
                 size="icon"
-                className="size-16 rounded-full shadow-[0_0_32px_var(--accent-primary-glow)]"
+                className="size-16 rounded-full shadow-[0_0_36px_var(--accent-primary-glow)] sm:size-20"
                 onClick={() => void toggleRunning()}
-                aria-label={running ? "Pausar" : "Continuar"}
+                disabled={transitioning || phase === "error"}
+                aria-label={primaryLabel}
               >
-                {running ? (
+                {phase === "starting" ||
+                phase === "pausing" ||
+                phase === "resuming" ? (
+                  <LoaderCircle className="size-5 animate-spin" />
+                ) : running ? (
                   <Pause className="size-5 fill-current" />
                 ) : (
                   <Play className="ml-0.5 size-5 fill-current" />

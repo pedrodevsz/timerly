@@ -111,6 +111,7 @@ async function main() {
           topicId: topic.id,
           startedAt,
           endedAt,
+          lastTransitionAt: endedAt,
           durationSeconds: durations[dayOffset],
           status: SessionStatus.COMPLETED,
         },

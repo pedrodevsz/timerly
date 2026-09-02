@@ -1,127 +1,49 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { studySessionApi } from "@/services/study-session-service";
-import type { StudySessionDto } from "@/types/domain";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-
-type TimerContextValue = {
-  session: StudySessionDto | null;
-  elapsed: number;
-  running: boolean;
-  loading: boolean;
-  error: string | null;
-  startSession: (topicId: number) => Promise<void>;
-  updateSession: (topicId: number) => Promise<void>;
-  toggleRunning: () => Promise<void>;
-  stopSession: () => Promise<void>;
-};
-
-const TimerContext = createContext<TimerContextValue | null>(null);
+import { studySessionApi } from "@/services/study-session-service";
+import {
+  selectTimerContext,
+  useTimerStore,
+} from "@/stores/timer-store";
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthRoute = pathname === "/login" || pathname === "/register";
-  const [session, setSession] = useState<StudySessionDto | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  const [loading, setLoading] = useState(!isAuthRoute);
-  const [error, setError] = useState<string | null>(null);
-  const running = session?.status === "ACTIVE";
+  const hydrate = useTimerStore((state) => state.hydrate);
+  const tick = useTimerStore((state) => state.tick);
+  const phase = useTimerStore((state) => state.phase);
+  const context = useTimerStore(selectTimerContext);
 
   useEffect(() => {
-    if (isAuthRoute) {
+    if (isAuthRoute) return;
+    void studySessionApi
+      .active()
+      .then(hydrate)
+      .catch(() => hydrate(null));
+  }, [hydrate, isAuthRoute]);
+
+  useEffect(() => {
+    if (phase === "idle") return;
+    tick(Date.now());
+    const interval = window.setInterval(() => tick(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [phase, tick]);
+
+  useEffect(() => {
+    if (!context) {
+      if (document.title.startsWith("Timer — ")) {
+        document.title = "Orbe — Study Tracker";
+      }
       return;
     }
-    studySessionApi
-      .active()
-      .then((active) => {
-        setSession(active);
-        setElapsed(active?.elapsedSeconds ?? 0);
-      })
-      .catch((reason: unknown) =>
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Falha ao restaurar o cronômetro.",
-        ),
-      )
-      .finally(() => setLoading(false));
-  }, [isAuthRoute]);
-  useEffect(() => {
-    if (!running) return;
-    const interval = window.setInterval(
-      () => setElapsed((value) => value + 1),
-      1000,
-    );
-    return () => window.clearInterval(interval);
-  }, [running]);
+    document.title = `Timer — ${context.topic.name}`;
+  }, [context]);
 
-  async function run(operation: () => Promise<StudySessionDto>, clear = false) {
-    setError(null);
-    try {
-      const updated = await operation();
-      if (clear) {
-        setSession(null);
-        setElapsed(0);
-        window.dispatchEvent(new Event("study-data-updated"));
-      } else {
-        setSession(updated);
-        setElapsed(updated.elapsedSeconds);
-      }
-    } catch (reason) {
-      const message =
-        reason instanceof Error
-          ? reason.message
-          : "Não foi possível atualizar o cronômetro.";
-      setError(message);
-      toast.error(message);
-    }
-  }
-
-  const value = useMemo<TimerContextValue>(
-    () => ({
-      session,
-      elapsed,
-      running,
-      loading,
-      error,
-      async startSession(topicId) {
-        await run(() =>
-          session
-            ? studySessionApi.changeTopic(session.id, topicId)
-            : studySessionApi.start(topicId),
-        );
-      },
-      async updateSession(topicId) {
-        if (session)
-          await run(() => studySessionApi.changeTopic(session.id, topicId));
-      },
-      async toggleRunning() {
-        if (session)
-          await run(() =>
-            studySessionApi.action(session.id, running ? "pause" : "resume"),
-          );
-      },
-      async stopSession() {
-        if (session)
-          await run(() => studySessionApi.action(session.id, "stop"), true);
-      },
-    }),
-    [session, elapsed, running, loading, error],
-  );
-
-  return (
-    <TimerContext.Provider value={value}>{children}</TimerContext.Provider>
-  );
+  return children;
 }
 
-export function useTimer() {
-  const context = useContext(TimerContext);
-  if (!context)
-    throw new Error("useTimer deve ser usado dentro de TimerProvider");
-  return context;
-}
 export function formatTime(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600)
     .toString()

@@ -5,17 +5,21 @@ import { LoginForm } from "@/components/auth/login-form";
 import { RegisterForm } from "@/components/auth/register-form";
 import { authApi } from "@/services/auth-service";
 
-const replace = vi.fn();
-const refresh = vi.fn();
+const completeAuthentication = vi.hoisted(() => vi.fn());
+const beginGoogleAuthentication = vi.hoisted(() => vi.fn());
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, refresh }),
+vi.mock("@/components/auth/complete-authentication", () => ({
+  completeAuthentication,
+}));
+vi.mock("@/components/auth/begin-google-authentication", () => ({
+  beginGoogleAuthentication,
 }));
 
 afterEach(() => {
   vi.restoreAllMocks();
-  replace.mockReset();
-  refresh.mockReset();
+  completeAuthentication.mockReset();
+  beginGoogleAuthentication.mockReset();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("fluxo visual de autenticação", () => {
@@ -51,7 +55,7 @@ describe("fluxo visual de autenticação", () => {
     expect(screen.getByRole("button", { name: "Entrando…" })).toBeDisabled();
     expect(authApi.login).toHaveBeenCalledTimes(1);
     finishLogin?.();
-    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await vi.waitFor(() => expect(completeAuthentication).toHaveBeenCalledOnce());
   });
 
   it("valida cadastro, incluindo tamanho e confirmação da senha", async () => {
@@ -71,11 +75,45 @@ describe("fluxo visual de autenticação", () => {
     expect(screen.getByText("As senhas precisam ser iguais.")).toBeInTheDocument();
   });
 
-  it("mantém Google sem OAuth ou sucesso simulado", async () => {
+  it("inicia o OAuth do Google pelo login e bloqueia novos cliques", async () => {
     const user = userEvent.setup();
     render(<LoginForm />);
     await user.click(screen.getByRole("button", { name: "Continuar com Google" }));
-    expect(screen.getByRole("status")).toHaveTextContent("será conectada na próxima etapa");
-    expect(replace).not.toHaveBeenCalled();
+    expect(beginGoogleAuthentication).toHaveBeenCalledWith("login");
+    expect(screen.getByRole("button", { name: "Redirecionando…" })).toBeDisabled();
+    expect(completeAuthentication).not.toHaveBeenCalled();
+  });
+
+  it("inicia o mesmo OAuth do Google pelo cadastro", async () => {
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+    await user.click(screen.getByRole("button", { name: "Continuar com Google" }));
+    expect(beginGoogleAuthentication).toHaveBeenCalledWith("register");
+  });
+
+  it("exibe o cancelamento do Google sem quebrar o login", async () => {
+    window.history.replaceState(null, "", "/login?oauth_error=cancelled");
+    render(<LoginForm />);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "A entrada com Google foi cancelada.",
+    );
+    expect(window.location.search).toBe("");
+  });
+
+  it("conclui a autenticação depois de criar a conta", async () => {
+    vi.spyOn(authApi, "register").mockResolvedValue({
+      user: { id: "1", name: "Ana", email: "ana@example.com" },
+    });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Nome"), "Ana");
+    await user.type(screen.getByLabelText("E-mail"), "ana@example.com");
+    await user.type(screen.getByLabelText("Senha"), "senha-segura");
+    await user.type(screen.getByLabelText("Confirmar senha"), "senha-segura");
+    await user.click(screen.getByRole("button", { name: "Criar conta" }));
+
+    await vi.waitFor(() => expect(authApi.register).toHaveBeenCalledOnce());
+    expect(completeAuthentication).toHaveBeenCalledOnce();
   });
 });

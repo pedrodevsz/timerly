@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import { AUTHENTICATED_APP_PATH } from "@/lib/auth/session-config";
+import { getCurrentUser } from "@/modules/auth/session.service";
 
-export default function AuthLayout({ children }: { children: ReactNode }) {
+export default async function AuthLayout({ children }: { children: ReactNode }) {
+  if (await getCurrentUser()) {
+    redirect(AUTHENTICATED_APP_PATH);
+  }
+
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-10 sm:px-6">
       <div className="aurora-canvas" aria-hidden="true">

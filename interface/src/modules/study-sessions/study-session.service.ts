@@ -62,6 +62,26 @@ function requireOpen(session: SessionRecord) {
     );
 }
 
+function transitionTimestamp(
+  occurredAt: string | undefined,
+  serverNow: Date,
+  earliest: Date,
+) {
+  if (!occurredAt) return serverNow;
+  const requested = new Date(occurredAt).getTime();
+  return new Date(
+    Math.min(serverNow.getTime(), Math.max(earliest.getTime(), requested)),
+  );
+}
+
+function startTimestamp(occurredAt: string | undefined, serverNow: Date) {
+  if (!occurredAt) return serverNow;
+  const maximumLookback = serverNow.getTime() - 5 * 60_000;
+  return new Date(
+    Math.min(serverNow.getTime(), Math.max(maximumLookback, new Date(occurredAt).getTime())),
+  );
+}
+
 export const studySessionService = {
   async list(userId: string) {
     return (await studySessionRepository.list(userId)).map((session) =>
@@ -73,6 +93,8 @@ export const studySessionService = {
     return session ? dto(session) : null;
   },
   async create(userId: string, input: CreateStudySessionInput) {
+    const now = new Date();
+    const occurredAt = startTimestamp(input.occurredAt, now);
     const topic = await getPrisma().topic.findFirst({
       where: {
         id: input.topicId,
@@ -82,13 +104,18 @@ export const studySessionService = {
     });
     if (!topic)
       throw notFound("TOPIC_NOT_FOUND", "Tópico não encontrado.");
-    if (await studySessionRepository.findActive(userId))
+    const activeSession = await studySessionRepository.findActive(userId);
+    if (activeSession?.topic.id === input.topicId) {
+      return dto(activeSession, now);
+    }
+    if (activeSession)
       throw conflict(
         "ACTIVE_SESSION_EXISTS",
         "Encerre a sessão atual antes de iniciar outra.",
       );
     return dto(
-      await studySessionRepository.create(userId, input.topicId, new Date()),
+      await studySessionRepository.create(userId, input.topicId, occurredAt),
+      now,
     );
   },
   async update(
@@ -97,65 +124,69 @@ export const studySessionService = {
     input: UpdateStudySessionInput,
   ) {
     const session = await requireSession(userId, id);
-    requireOpen(session);
     const now = new Date();
     if (input.action === "pause") {
+      if (session.status === "PAUSED") return dto(session, now);
+      requireOpen(session);
       if (session.status !== "ACTIVE")
         throw conflict(
           "SESSION_NOT_ACTIVE",
           "A sessão não está em andamento.",
         );
+      const occurredAt = transitionTimestamp(
+        input.occurredAt,
+        now,
+        session.lastTransitionAt,
+      );
       return dto(
         await studySessionRepository.update(id, {
           status: "PAUSED",
           durationSeconds: runningDuration(
             session.durationSeconds,
             session.lastResumedAt,
-            now,
+            occurredAt,
           ),
           lastResumedAt: null,
+          lastTransitionAt: occurredAt,
         }),
         now,
       );
     }
     if (input.action === "resume") {
+      if (session.status === "ACTIVE") return dto(session, now);
+      requireOpen(session);
       if (session.status !== "PAUSED")
         throw conflict(
           "SESSION_NOT_PAUSED",
           "A sessão não está pausada.",
         );
+      const occurredAt = transitionTimestamp(
+        input.occurredAt,
+        now,
+        session.lastTransitionAt,
+      );
       return dto(
         await studySessionRepository.update(id, {
           status: "ACTIVE",
-          lastResumedAt: now,
+          lastResumedAt: occurredAt,
+          lastTransitionAt: occurredAt,
         }),
         now,
       );
     }
-    if (input.action === "change-topic") {
-      if (
-        !(await getPrisma().topic.findFirst({
-          where: {
-            id: input.topicId,
-            subject: { project: { userId } },
-          },
-          select: { id: true },
-        }))
-      )
-        throw notFound("TOPIC_NOT_FOUND", "Tópico não encontrado.");
-      return dto(
-        await studySessionRepository.update(id, {
-          topic: { connect: { id: input.topicId } },
-        }),
-        now,
-      );
-    }
+    if (session.status === "COMPLETED") return dto(session, now);
+    requireOpen(session);
+    const occurredAt = transitionTimestamp(
+      input.occurredAt,
+      now,
+      session.lastTransitionAt,
+    );
     const durationSeconds =
       session.status === "ACTIVE"
         ? runningDuration(
             session.durationSeconds,
             session.lastResumedAt,
-            now,
+            occurredAt,
           )
         : session.durationSeconds;
     const completed = await getPrisma().$transaction(async (transaction) =>
@@ -163,9 +194,10 @@ export const studySessionService = {
         where: { id },
         data: {
           status: "COMPLETED",
-          endedAt: now,
+          endedAt: occurredAt,
           durationSeconds,
           lastResumedAt: null,
+          lastTransitionAt: occurredAt,
         },
         include: sessionInclude,
       }),

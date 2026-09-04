@@ -102,6 +102,7 @@ model StudySession {
   topicId         Int           @map("topic_id")
   startedAt       DateTime      @default(now()) @map("started_at") @db.Timestamptz(3)
   lastResumedAt   DateTime?     @map("last_resumed_at") @db.Timestamptz(3)
+  lastTransitionAt DateTime     @map("last_transition_at") @db.Timestamptz(3)
   endedAt         DateTime?     @map("ended_at") @db.Timestamptz(3)
   durationSeconds Int           @default(0) @map("duration_seconds")
   status          SessionStatus @default(ACTIVE)

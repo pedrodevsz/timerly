@@ -30,13 +30,14 @@ export const studySessionRepository = {
       take,
       include: sessionInclude,
     }),
-  create: (userId: string, topicId: number, now: Date) =>
+  create: (userId: string, topicId: number, occurredAt: Date) =>
     getPrisma().studySession.create({
       data: {
         userId,
         topicId,
-        startedAt: now,
-        lastResumedAt: now,
+        startedAt: occurredAt,
+        lastResumedAt: occurredAt,
+        lastTransitionAt: occurredAt,
         status: "ACTIVE",
       },
       include: sessionInclude,

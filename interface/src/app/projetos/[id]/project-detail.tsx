@@ -23,7 +23,7 @@ import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { CreateBulkTopicsDialog } from "@/components/subjects/create-bulk-topics-dialog";
 import { CreateTopicDialog } from "@/components/subjects/create-topic-dialog";
 import { SubjectDialog } from "@/components/subjects/subject-dialog";
-import { useTimer } from "@/contexts/timer-context";
+import { useTimerStore } from "@/stores/timer-store";
 import { useResource } from "@/hooks/use-resource";
 import { projectApi } from "@/services/project-service";
 import type { SubjectDto, TopicDto } from "@/types/domain";
@@ -56,7 +56,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     | { type: "topic"; id: number; name: string }
     | null
   >(null);
-  const { startSession } = useTimer();
+  const startSession = useTimerStore((state) => state.startSession);
 
   async function toggleTopic(topicId: number, completed: boolean) {
     try {
@@ -402,7 +402,19 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                           size="sm"
                           variant="ghost"
                           className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                          onClick={() => void startSession(topic.id)}
+                          onClick={() =>
+                            void startSession({
+                              project: {
+                                id: project.id,
+                                name: project.name,
+                              },
+                              subject: {
+                                id: subject.id,
+                                name: subject.name,
+                              },
+                              topic: { id: topic.id, name: topic.name },
+                            })
+                          }
                         >
                           <Play className="size-3 fill-current" /> Estudar
                         </Button>

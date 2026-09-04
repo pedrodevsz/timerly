@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -8,7 +8,9 @@ import {
   CalendarDays,
   Clock3,
   Flame,
+  Plus,
 } from "lucide-react";
+import { ManualStudyDialog } from "@/components/study-sessions/manual-study-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +41,7 @@ function when(iso: string) {
 }
 
 export default function Home() {
+  const [manualStudyOpen, setManualStudyOpen] = useState(false);
   const loader = useCallback(() => dashboardApi.get(), []);
   const { data, loading, error, reload } = useResource(loader);
   useEffect(() => {
@@ -118,6 +121,10 @@ export default function Home() {
           <h1>Bom dia, Pedro.</h1>
           <p>O ritmo está bom. Mantenha a constância, não a pressa.</p>
         </div>
+        <Button type="button" onClick={() => setManualStudyOpen(true)}>
+          <Plus className="size-4" />
+          Adicionar estudo manualmente
+        </Button>
       </header>
       <section className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         {metrics.map((metric, index) => (
@@ -304,6 +311,10 @@ export default function Home() {
           </CardContent>
         </Card>
       </section>
+      <ManualStudyDialog
+        open={manualStudyOpen}
+        onOpenChange={setManualStudyOpen}
+      />
     </div>
   );
 }

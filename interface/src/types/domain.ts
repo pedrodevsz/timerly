@@ -48,6 +48,18 @@ export type StudySessionDto = {
   topic: { id: number; name: string };
 };
 
+export type ManualStudyOptionsDto = Array<{
+  id: string;
+  name: string;
+  project: { id: string; name: string };
+  topics: TopicDto[];
+}>;
+
+export type ManualStudyResultDto = {
+  session: StudySessionDto;
+  topicCreated: boolean;
+};
+
 export type DashboardDto = {
   studiedDaysThisMonth: number;
   weeklySeconds: number;

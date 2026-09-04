@@ -12,6 +12,25 @@ export const sessionInclude = {
 } as const;
 
 export const studySessionRepository = {
+  manualOptions: (userId: string) =>
+    getPrisma().subject.findMany({
+      where: { project: { userId } },
+      orderBy: [{ project: { createdAt: "asc" } }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        project: { select: { id: true, name: true } },
+        topics: {
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            name: true,
+            completed: true,
+            subjectId: true,
+          },
+        },
+      },
+    }),
   findActive: (userId: string) =>
     getPrisma().studySession.findFirst({
       where: { userId, status: { in: ["ACTIVE", "PAUSED"] } },

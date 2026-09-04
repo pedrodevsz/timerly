@@ -82,8 +82,3 @@ Respostas de sucesso usam `{ "data": ... }`. Erros conhecidos usam `{ "error": {
 
 Ainda não há autenticação. As configurações usam temporariamente o perfil de ID `local`, e a camada de serviço/repository deixa a associação a usuário isolada para uma evolução futura.
 
-
-## Ajustes futuros 
-
-#### add ou remover o button de nova imagem
-#### Montar um registro de estudo manual para quando estudar mas não estiver contando.

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { AuthDivider } from "@/components/auth/auth-divider";
+import { completeAuthentication } from "@/components/auth/complete-authentication";
 import { AuthField } from "@/components/auth/auth-field";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { PasswordInput } from "@/components/auth/password-input";
@@ -19,7 +19,6 @@ import { authApi } from "@/services/auth-service";
 type FieldErrors = Partial<Record<keyof RegisterInput, string>>;
 
 export function RegisterForm() {
-  const router = useRouter();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,8 +59,7 @@ export function RegisterForm() {
         email: result.data.email,
         password: result.data.password,
       });
-      router.replace("/");
-      router.refresh();
+      await completeAuthentication();
     } catch (reason) {
       setStatus(
         reason instanceof Error
@@ -147,7 +145,11 @@ export function RegisterForm() {
       </Button>
 
       <AuthDivider />
-      <GoogleAuthButton disabled={isSubmitting} onUnavailable={setStatus} />
+      <GoogleAuthButton
+        source="register"
+        disabled={isSubmitting}
+        onError={setStatus}
+      />
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
         Já possui uma conta?{" "}

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { AuthDivider } from "@/components/auth/auth-divider";
+import { completeAuthentication } from "@/components/auth/complete-authentication";
 import { AuthField } from "@/components/auth/auth-field";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { PasswordInput } from "@/components/auth/password-input";
@@ -16,7 +16,6 @@ import { authApi } from "@/services/auth-service";
 type FieldErrors = Partial<Record<keyof LoginInput, string>>;
 
 export function LoginForm() {
-  const router = useRouter();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,8 +50,7 @@ export function LoginForm() {
 
     try {
       await authApi.login(result.data);
-      router.replace("/");
-      router.refresh();
+      await completeAuthentication();
     } catch (reason) {
       setStatus(
         reason instanceof Error
@@ -106,7 +104,11 @@ export function LoginForm() {
       </Button>
 
       <AuthDivider />
-      <GoogleAuthButton disabled={isSubmitting} onUnavailable={setStatus} />
+      <GoogleAuthButton
+        source="login"
+        disabled={isSubmitting}
+        onError={setStatus}
+      />
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
         Não possui uma conta?{" "}

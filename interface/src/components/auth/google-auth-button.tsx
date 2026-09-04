@@ -1,18 +1,54 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { LoaderCircle } from "lucide-react";
+import { beginGoogleAuthentication } from "@/components/auth/begin-google-authentication";
 import { Button } from "@/components/ui/button";
+import type { GoogleAuthSource } from "@/lib/auth/session-config";
 
 type GoogleAuthButtonProps = {
-  onUnavailable: (message: string) => void;
+  source: GoogleAuthSource;
+  onError: (message: string) => void;
   disabled?: boolean;
 };
 
+const oauthErrorMessages: Record<string, string> = {
+  cancelled: "A entrada com Google foi cancelada.",
+  unavailable: "A entrada com Google ainda não está disponível.",
+  invalid_state: "A tentativa de entrada expirou. Tente novamente.",
+  invalid_response: "O Google retornou uma resposta inválida. Tente novamente.",
+  failed: "Não foi possível entrar com Google. Tente novamente.",
+};
+
 export function GoogleAuthButton({
-  onUnavailable,
+  source,
+  onError,
   disabled = false,
 }: GoogleAuthButtonProps) {
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+    const error = currentUrl.searchParams.get("oauth_error");
+    if (!error) return;
+
+    onError(
+      oauthErrorMessages[error] ??
+        "Não foi possível concluir a entrada com Google.",
+    );
+    currentUrl.searchParams.delete("oauth_error");
+    window.history.replaceState(null, "", currentUrl);
+  }, [onError]);
+
   function handleGoogleAuth() {
-    onUnavailable("A entrada com Google será conectada na próxima etapa.");
+    if (disabled || isRedirecting) return;
+    setIsRedirecting(true);
+    try {
+      beginGoogleAuthentication(source);
+    } catch {
+      setIsRedirecting(false);
+      onError("Não foi possível iniciar a entrada com Google.");
+    }
   }
 
   return (
@@ -20,11 +56,15 @@ export function GoogleAuthButton({
       type="button"
       variant="secondary"
       className="h-11 w-full"
-      disabled={disabled}
+      disabled={disabled || isRedirecting}
       onClick={handleGoogleAuth}
     >
-      <GoogleIcon />
-      Continuar com Google
+      {isRedirecting ? (
+        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <GoogleIcon />
+      )}
+      {isRedirecting ? "Redirecionando…" : "Continuar com Google"}
     </Button>
   );
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 export const TOPIC_NAME_MAX_LENGTH = 180;
 export const MAX_BULK_TOPICS = 100;
 
-const topicNameSchema = z
+export const topicNameSchema = z
   .string()
   .trim()
   .min(2, "Informe ao menos 2 caracteres.")

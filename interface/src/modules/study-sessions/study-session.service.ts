@@ -1,13 +1,27 @@
 import { getPrisma } from "@/lib/db/prisma";
-import { conflict, notFound } from "@/lib/errors/app-error";
+import {
+  AppError,
+  conflict,
+  notFound,
+  unauthorized,
+} from "@/lib/errors/app-error";
 import { runningDuration } from "@/lib/time/duration";
-import type { StudySessionDto } from "@/types/domain";
+import {
+  cleanTopicName,
+  normalizeTopicName,
+} from "@/lib/topics/parse-bulk-topics";
+import type {
+  ManualStudyOptionsDto,
+  ManualStudyResultDto,
+  StudySessionDto,
+} from "@/types/domain";
 import {
   studySessionRepository,
   sessionInclude,
 } from "./study-session.repository";
 import type {
   CreateStudySessionInput,
+  CreateManualStudySessionInput,
   UpdateStudySessionInput,
 } from "./study-session.schema";
 
@@ -78,11 +92,108 @@ function startTimestamp(occurredAt: string | undefined, serverNow: Date) {
   if (!occurredAt) return serverNow;
   const maximumLookback = serverNow.getTime() - 5 * 60_000;
   return new Date(
-    Math.min(serverNow.getTime(), Math.max(maximumLookback, new Date(occurredAt).getTime())),
+    Math.min(
+      serverNow.getTime(),
+      Math.max(maximumLookback, new Date(occurredAt).getTime()),
+    ),
   );
 }
 
+function requireTopicReference(topic: { id: number } | null | undefined) {
+  if (!topic || !Number.isInteger(topic.id) || topic.id <= 0) {
+    throw new AppError(
+      "INVALID_TOPIC_REFERENCE",
+      "Não foi possível vincular a sessão a um tópico válido.",
+      500,
+    );
+  }
+  return topic;
+}
+
 export const studySessionService = {
+  async manualOptions(userId: string): Promise<ManualStudyOptionsDto> {
+    return studySessionRepository.manualOptions(userId);
+  },
+  async createManual(
+    userId: string,
+    input: CreateManualStudySessionInput,
+  ): Promise<ManualStudyResultDto> {
+    if (!userId) {
+      throw unauthorized();
+    }
+    const result = await getPrisma().$transaction(async (transaction) => {
+      const subject = await transaction.subject.findFirst({
+        where: { id: input.subjectId, project: { userId } },
+        select: { id: true },
+      });
+      if (!subject) {
+        throw notFound("SUBJECT_NOT_FOUND", "Matéria não encontrada.");
+      }
+
+      let topic: { id: number };
+      let topicCreated = false;
+      if (input.topic.type === "existing") {
+        const existingTopic = await transaction.topic.findFirst({
+          where: { id: input.topic.id, subjectId: subject.id },
+          select: { id: true },
+        });
+        if (!existingTopic) {
+          throw notFound(
+            "TOPIC_NOT_FOUND",
+            "Tópico não encontrado nesta matéria.",
+          );
+        }
+        topic = requireTopicReference(existingTopic);
+      } else {
+        await transaction.$executeRaw`
+          SELECT pg_advisory_xact_lock(hashtext(${subject.id}))
+        `;
+        const topics = await transaction.topic.findMany({
+          where: { subjectId: subject.id },
+          select: { id: true, name: true },
+        });
+        const normalizedName = normalizeTopicName(input.topic.name);
+        const equivalent = topics.find(
+          (item) => normalizeTopicName(item.name) === normalizedName,
+        );
+        if (equivalent) {
+          topic = requireTopicReference(equivalent);
+        } else {
+          topic = requireTopicReference(
+            await transaction.topic.create({
+              data: {
+                subjectId: subject.id,
+                name: cleanTopicName(input.topic.name),
+              },
+              select: { id: true },
+            }),
+          );
+          topicCreated = true;
+        }
+      }
+
+      const startedAt = new Date(`${input.studyDate}T12:00:00.000Z`);
+      const endedAt = new Date(
+        startedAt.getTime() + input.durationSeconds * 1_000,
+      );
+      const session = await transaction.studySession.create({
+        data: {
+          userId,
+          topicId: topic.id,
+          startedAt,
+          endedAt,
+          lastTransitionAt: endedAt,
+          durationSeconds: input.durationSeconds,
+          status: "COMPLETED",
+          lastResumedAt: null,
+        },
+        include: sessionInclude,
+      });
+      return { session, topicCreated };
+    });
+
+    return { session: dto(result.session), topicCreated: result.topicCreated };
+  },
   async list(userId: string) {
     return (await studySessionRepository.list(userId)).map((session) =>
       dto(session),
